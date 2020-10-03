@@ -3,85 +3,62 @@ package com.stack.operation.stackpush.service;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.hibernate.internal.util.collections.Stack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.stack.operation.stackpush.entity.ResponseData;
 import com.stack.operation.stackpush.entity.StackData;
-import com.stack.operation.stackpush.repository.StackElementRepository;
+import com.stack.operation.stackpush.repository.mysql.StackElementRepositoryMysql;
+import com.stack.operation.stackpush.repository.psql.StackElementRepositoryPsql;
 
 @Service
 public class PushElement {
     
+    Logger logger = LoggerFactory.getLogger(this.getClass());
+    
     @Autowired
-    private StackElementRepository stackRepository;
+    private StackElementRepositoryMysql stackRepositoryMysql;
+    
+    @Autowired
+    private StackElementRepositoryPsql stackRepositoryPsql;
     
     @Autowired
     private ResponseData responseData;
     
-    public ResponseData pushDataInStack(Integer data) {
+    public ResponseData pushDataInStack(String data, String dataSource) throws Exception {
         StackData insertData = new StackData();
+        logger.info("PushElement():: element {}, db {}", data, dataSource);
         insertData.setStackElements(data);
-        stackRepository.saveAndFlush(insertData);
-        
-        List <Integer> stackState = new ArrayList();
-        for (StackData allData : stackRepository.findAll()) {
-            stackState.add(allData.getStackElements());
+        if ("psql".equalsIgnoreCase(dataSource)) {
+            stackRepositoryPsql.saveAndFlush(insertData);
+        } else {
+            stackRepositoryMysql.saveAndFlush(insertData);
         }
-        
-        responseData.setElements(stackState);
-        
+
+        responseData.setElements(setStackState(dataSource));
+        responseData.setDatasource(dataSource);
+
         return responseData;
 
-//        for (StackData allData : stackRepository.findAll()) {
-//            if (allData.getId() == 1L) {
-//                Stack<Integer> local = allData.getStackElements();
-//                local.push(data);
-//                allData.setStackElements(local);
-//                stackRepository.save(allData);
+    }
 
-//            } else {
-//                Stack<Integer> elements = new Stack<>();
-//                elements.push(data);
-//                StackData stackData = new StackData();
-//                stackData.setId(1L);
-//                stackData.setStackElements(elements);
-//                stackRepository.save(stackData);
-//            }
-//        }
-//      Optional<StackData> getData = stackRepository.findById(1L);
-//        if(!getData.isPresent()) {
-//            StackData existingStack = getData.get();
-//            Stack<Integer> local = existingStack.getStackElements();
-//            local.push(data);
-//            existingStack.setStackElements(local);
-//            stackRepository.save(existingStack);
-//        } else {
-//            Stack<Integer> elements = null;
-//            elements.push(data);
-//            StackData stackData = new StackData();
-//            stackData.setId(1L);
-//            stackData.setStackElements(elements);
-//            stackRepository.save(stackData);
-//        }
-//        
-//        Optional<StackData> retrieveData = stackRepository.findById(1L);
-//        StackData dataFromDB = retrieveData.get();
-//        System.out.println("DATA FROM DB: "+ dataFromDB.getStackElements());
-//        return dataFromDB.getStackElements();
-//        List<StackData> stackList = stackRepository.findAll();
-//        
-//        for (StackData stack : stackList) {
-//            stack.getStackElements().push(data);
-//            stackRepository.save(stack);
-//            return stack;
-//        }
-//        
-//        return null;
-        
+    private List<String> setStackState(String dataSource) {
+        List<String> stackState = new ArrayList<String>();
+        if ("psql".equalsIgnoreCase(dataSource)) {
+            for (StackData allData : stackRepositoryPsql.findAll()) {
+                stackState.add(allData.getStackElements());
+            }
+        } else {
+            for (StackData allData : stackRepositoryMysql.findAll()) {
+                stackState.add(allData.getStackElements());
+            }
+        }
+        return stackState;
     }
     
 
 }
+
 
